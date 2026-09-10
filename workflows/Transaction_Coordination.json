@@ -1,0 +1,263 @@
+{
+  "name": "Transaction Coordination",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -864,
+        -16
+      ],
+      "id": "0aa1c1a9-e303-4bf5-84f0-847b2c010384",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "transactions",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        -16
+      ],
+      "id": "dcaf8633-48e4-4ef4-9212-624b6c4047a6",
+      "name": "Get many rows",
+      "credentials": {
+        "supabaseApi": {
+          "id": "7T3w55mPBUUkeek1",
+          "name": "Supabase Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Draft a transaction-related email.\n\nAction needed: {{ $json.action }}\nContext: {{ $json.context }}\nProperty: {{ $json.property_address }}\nBuyer: {{ $json.buyer_name }}\nSeller: {{ $json.seller_name }}\nOther agent email: {{ $json.other_agent_email }}\nClosing date: {{ $json.closing_date }}\nInspection date: {{ $json.inspection_date }}\nNotes about this deal: {{ $json.notes }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are drafting an email on behalf of a real estate agent coordinating an active transaction. The action field tells you what to write:  - \"inspection_tomorrow\" \u2192 Email TO the buyer. Confirm tomorrow's inspection time and address. Mention what to expect (inspector on-site ~2 hours, can attend or skip), and let them know you'll follow up after with results. Reassure if the deal notes mention nervousness.  - \"inspection_today\" \u2192 Email TO the buyer. Quick check-in: inspection is today, you'll have results by end of day, will reach out tonight or tomorrow morning with next steps.  - \"inspection_follow_up\" \u2192 Email TO the buyer first, then a separate paragraph addressed to the other agent. To the buyer: summarize what came up in the inspection (use the deal notes for specifics), what their options are (proceed as-is, request repairs, request credit, walk away), and propose a quick call to decide. To the other agent: brief note that you're discussing inspection findings with your buyer and will be back with a response within 48 hours.  - \"closing_soon\" \u2192 Email TO the buyer. Checklist of what they need to do before closing: confirm wire instructions with the title company (warn about wire fraud), bring two forms of ID, do a final walkthrough 24-48hrs before, confirm utilities transfer date. Sign off with reassurance.  Output ONLY the email body. No subject line, no preamble.  For the inspection_follow_up case, separate the buyer message and the other-agent message with a line that says exactly:  ---SECOND EMAIL TO OTHER AGENT---  Voice rules: - Professional, calm, in-control. You're the expert guiding people through a stressful process. - NO em dashes. NO emojis. - Contractions: we'll, you're, I'll. - Avoid AI tells. - Sign off with \"Thanks, [Agent Name]\" \u2014 agent replaces before sending. - Reference specifics from the deal (property address, names, dates) so it doesn't feel template-y. - 4-6 sentences per email max."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -16
+      ],
+      "id": "f3110433-ca62-4a42-a65f-16d93c0dfdbf",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "TYWXNZTOwt5BhweN",
+          "name": "Anthropic - Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\ntoday.setUTCHours(0, 0, 0, 0);\nconst todayMs = today.getTime();\nconst DAY_MS = 24 * 60 * 60 * 1000;\n\nconst results = [];\n\nfor (const item of $input.all()) {\n  const t = item.json;\n  \n  // Skip closed transactions\n  if (t.status === 'closed') continue;\n  \n  let action = null;\n  let context = '';\n  \n  // Parse milestones (it might be stringified JSON)\n  const milestones = typeof t.milestones === 'string' \n    ? JSON.parse(t.milestones) \n    : (t.milestones || {});\n  \n  // Check: inspection happening tomorrow or today\n  if (t.inspection_date) {\n    const inspectionDate = new Date(t.inspection_date);\n    inspectionDate.setUTCHours(0, 0, 0, 0);\n    const daysUntilInspection = (inspectionDate.getTime() - todayMs) / DAY_MS;\n    \n    if (daysUntilInspection === 1) {\n      action = 'inspection_tomorrow';\n      context = 'Inspection is scheduled for tomorrow';\n    } else if (daysUntilInspection === 0 && !milestones.inspection_done) {\n      action = 'inspection_today';\n      context = 'Inspection is scheduled for today';\n    }\n  }\n  \n  // Check: inspection done but no follow-up sent yet\n  if (!action && milestones.inspection_done && !milestones.inspection_follow_up_sent) {\n    action = 'inspection_follow_up';\n    context = 'Inspection completed, need to follow up with buyer and other agent';\n  }\n  \n  // Check: closing in 7 days or less\n  if (!action && t.closing_date) {\n    const closingDate = new Date(t.closing_date);\n    closingDate.setUTCHours(0, 0, 0, 0);\n    const daysUntilClosing = (closingDate.getTime() - todayMs) / DAY_MS;\n    \n    if (daysUntilClosing > 0 && daysUntilClosing <= 7) {\n      action = 'closing_soon';\n      context = `Closing in ${Math.floor(daysUntilClosing)} day${Math.floor(daysUntilClosing) > 1 ? 's' : ''}`;\n    }\n  }\n  \n  if (action) {\n    results.push({\n      json: {\n        ...t,\n        action: action,\n        context: context\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        -16
+      ],
+      "id": "c4b1076e-1cd0-4b3a-a345-c74b07e48eac",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.action === 'closing_soon' ? 'Final steps before closing on ' + $json.property_address : $json.action === 'inspection_tomorrow' ? 'Inspection tomorrow at ' + $json.property_address : $json.action === 'inspection_today' ? 'Inspection today at ' + $json.property_address : $json.recipient_role === 'other_agent' ? 'Re: ' + $json.property_address + ' inspection findings' : 'Inspection follow-up for ' + $json.property_address }}",
+        "message": "={{ $json.body }}",
+        "options": {
+          "sendTo": "={{ $json.to }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        256,
+        112
+      ],
+      "id": "57d8a05f-0f21-4a58-9bb8-e5871bdc8216",
+      "name": "Save Transaction Draft",
+      "webhookId": "191b6901-1af9-40fb-81e1-08eaea80d7bf",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const content = item.json.content[0].text;\n  \n  // Find the matching transaction context from earlier in the flow\n  // We need to know action, property_address, other_agent_email\n  const idx = $input.all().indexOf(item);\n  const txn = $('Code').all()[idx].json;\n  \n  if (content.includes('---SECOND EMAIL TO OTHER AGENT---')) {\n    const [buyerEmail, agentEmail] = content.split('---SECOND EMAIL TO OTHER AGENT---').map(s => s.trim());\n    \n    // Email 1: to buyer\n    results.push({\n      json: {\n        body: buyerEmail,\n        to: 'buyer@example.com',  // would be buyer's email in production\n        recipient_role: 'buyer',\n        action: txn.action,\n        property_address: txn.property_address\n      }\n    });\n    \n    // Email 2: to other agent\n    results.push({\n      json: {\n        body: agentEmail,\n        to: txn.other_agent_email,\n        recipient_role: 'other_agent',\n        action: txn.action,\n        property_address: txn.property_address\n      }\n    });\n  } else {\n    // Single email, just pass through\n    results.push({\n      json: {\n        body: content,\n        to: 'buyer@example.com',\n        recipient_role: 'buyer',\n        action: txn.action,\n        property_address: txn.property_address\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        -16
+      ],
+      "id": "93aa7f68-bb0f-4b7d-b732-56a0e407e7c1",
+      "name": "Split Drafts"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "drafts",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        256,
+        -144
+      ],
+      "id": "4799bc68-2bdd-480f-93bd-6ffd2f549833",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=I drafted {{ $json.drafts.length }} transaction emails for you to review:\n\n{{ $json.drafts.map((d, i) => `${i+1}. ${d.property_address} (${d.action}, to ${d.recipient_role})`).join('\\n') }}\n\nCheck your Gmail Drafts before sending.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        512,
+        -144
+      ],
+      "id": "d738f590-12cb-459f-a063-4e2ee0c2c60b",
+      "name": "Notify Transaction Drafts",
+      "webhookId": "86393f62-e41e-4366-9f9b-a3fbfa481997",
+      "credentials": {
+        "telegramApi": {
+          "id": "IA2iKB9Q8Vce7PeT",
+          "name": "Telegram Real Estate Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Split Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Drafts": {
+      "main": [
+        [
+          {
+            "node": "Save Transaction Draft",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Transaction Draft": {
+      "main": [
+        []
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Notify Transaction Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

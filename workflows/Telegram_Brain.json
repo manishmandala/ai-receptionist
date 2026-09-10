@@ -1,0 +1,334 @@
+{
+  "name": "Telegram Brain",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -544,
+        -16
+      ],
+      "id": "b6688b0c-cb39-45a8-9e58-23c29adeb1c1",
+      "name": "Telegram Trigger",
+      "webhookId": "313e8f6a-52fa-43d8-a5ed-e5cd599d546f",
+      "credentials": {
+        "telegramApi": {
+          "id": "IA2iKB9Q8Vce7PeT",
+          "name": "Telegram Real Estate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.message.text }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are a personal assistant for a real estate agent. The agent messages you on Telegram with questions, requests, or commands.  Voice rules \u2014 these are strict: - Write like a real person texting, not like AI. - NO em dashes (\u2014) ever. Use periods or commas instead. Break into two sentences if needed. - NO emojis unless the agent explicitly asks for one. - Avoid AI phrases: \"I hope this finds you well,\" \"Wishing you,\" \"filled with joy,\" \"cheers to,\" \"It was such a pleasure,\" \"Want me to adjust.\" Cut anything that sounds like a greeting card. - Skip flowery language. Real people don't say \"wonderful day filled with joy\" \u2014 they say \"have a great one\" or \"hope it's a good one.\" - Keep messages short. A birthday text is 1-3 sentences max, not a paragraph. - Don't ask \"want me to adjust the tone\" at the end. Just give the draft. If the agent wants changes, they'll ask.  When drafting messages to clients: - Sound like a friend who happens to be their realtor, not a corporate template. - Use contractions (I'm, you're, can't, it's). - Reference specifics (the property, the timeline, something personal) when given.  When answering questions or commands from the agent: - Be direct. Under 3 sentences unless asked for more. - No preamble like \"Great question!\" or \"Here's a draft!\" \u2014 just deliver."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        336
+      ],
+      "id": "54959a31-4a17-4ce0-93e3-487968e422db",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "TYWXNZTOwt5BhweN",
+          "name": "Anthropic - Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.content[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        336,
+        320
+      ],
+      "id": "45928c72-f677-4375-9c39-87fc4414af50",
+      "name": "Send a text message",
+      "webhookId": "3f838786-bdff-4de3-80e9-7a493da8bd68",
+      "credentials": {
+        "telegramApi": {
+          "id": "IA2iKB9Q8Vce7PeT",
+          "name": "Telegram Real Estate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/listing",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    },
+                    "id": "e53fbdfe-fc09-42a4-8e1c-d6d710f06bc2"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "listing"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a29e8d1a-a657-4d5c-bb0d-8380a52c5c9e",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/help",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "help"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "05305f78-f95d-4ceb-91ad-b162e9dac520",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notStartsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "chat"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -336,
+        -16
+      ],
+      "id": "ecebd9d6-aa1e-4177-9a5f-598fd4176c02",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Property notes from the agent:\n\n{{ $('Telegram Trigger').item.json.message.text.replace('/listing', '').trim() }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are writing an MLS listing description for a real estate agent. They've given you rough notes about a property. Turn them into a polished 150-200 word listing description that real buyers actually want to read.  Output ONLY the description body. No headline, no preamble like \"Here's your listing.\" Just the description.  Rules: - Lead with the property's most distinctive feature, not a generic opener. - Use sensory and specific language. \"Original 1920s hardwood floors\" beats \"beautiful hardwood throughout.\" - Mention 2-3 specific neighborhood or lifestyle features (walk to the Brown line, dog park around the corner, etc). - Close with a soft call to action that doesn't sound like a used-car ad. - NO em dashes, NO emojis, NO clich\u00e9s (\"This stunning gem\", \"won't last long\", \"must see\", \"true oasis\"). - NO real estate marketing-speak: \"boasts,\" \"features,\" \"nestled,\" \"showcase.\" - Write in active voice, present tense. - Each sentence should add something. Cut filler. - Sound like a thoughtful agent describing the home to a friend, not corporate copy.  If the notes are vague or incomplete, write a shorter description (80-120 words) and end with one specific question for the agent like \"Want me to revise once you confirm the lot size?\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -320
+      ],
+      "id": "98759151-44cd-4f1e-84d5-2d641b19d5df",
+      "name": "Generate Listing",
+      "credentials": {
+        "anthropicApi": {
+          "id": "TYWXNZTOwt5BhweN",
+          "name": "Anthropic - Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.content[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        256,
+        -320
+      ],
+      "id": "585223e9-7d45-4838-9a9b-97ddbeb7ac8f",
+      "name": "Send Listing Reply",
+      "webhookId": "4cc4cd35-4e3e-4d77-9345-fe57b365a929",
+      "credentials": {
+        "telegramApi": {
+          "id": "IA2iKB9Q8Vce7PeT",
+          "name": "Telegram Real Estate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Here's what I can do:  /listing [property notes] Generate an MLS description. Example: /listing 3 bed 2 bath Lincoln Park, hardwood floors, walk to L  /help Show this menu  Just chat Send any other message and I'll respond as your assistant. Ask me to draft texts, summarize things, brainstorm, whatever you need.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -128,
+        -16
+      ],
+      "id": "3fce47cc-2360-4b1e-8d7f-45d7ad8edcc8",
+      "name": "Send a text message1",
+      "webhookId": "05ea7db3-5736-42f5-bbe4-d63c035c1d9c",
+      "credentials": {
+        "telegramApi": {
+          "id": "IA2iKB9Q8Vce7PeT",
+          "name": "Telegram Real Estate Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Generate Listing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Listing": {
+      "main": [
+        [
+          {
+            "node": "Send Listing Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "khkhpl3aZ0e2q5eA",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

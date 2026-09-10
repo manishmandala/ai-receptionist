@@ -1,0 +1,108 @@
+{
+  "name": "Health Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8af1cee2-d97d-4deb-857e-06a4ebddb39d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contacts",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "775d6e19-8d7d-4a98-8d74-73e9320fe386",
+      "name": "Get many rows",
+      "credentials": {
+        "supabaseApi": {
+          "id": "7T3w55mPBUUkeek1",
+          "name": "Supabase Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=\u2705 Agent is up and running.\n\nContacts in database: {{ $input.all().length }}\nTime: {{ $now.format('cccc, LLL d, h:mm a') }}\n\nAll systems operational. Check the inbox digest for overnight mail.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "fae978f4-de2e-4730-b3f9-513b65271d7a",
+      "name": "Send Health Ping",
+      "webhookId": "a2ee9f47-954b-4558-8571-820fcd55c087",
+      "credentials": {
+        "telegramApi": {
+          "id": "IA2iKB9Q8Vce7PeT",
+          "name": "Telegram Real Estate Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "Send Health Ping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

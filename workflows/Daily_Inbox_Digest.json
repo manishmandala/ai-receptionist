@@ -1,0 +1,185 @@
+{
+  "name": "Daily Inbox Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "91506ca4-345f-4df9-83f3-46d2226aa401",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "filters": {
+          "q": "newer_than:1d (label:agent-lead OR label:agent-transaction OR label:agent-vendor OR label:agent-pastclient OR label:agent-junk)"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        160,
+        0
+      ],
+      "id": "556fccb8-4701-4b92-8661-acc6b39a086c",
+      "name": "Get many messages",
+      "webhookId": "58b3d503-98a3-4b06-8f8d-5aef518186ae",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Here are the emails received in the last 24 hours, with their labels:\n\n{{ JSON.stringify($json.emails.map(e => ({\n  label: e.labels.filter(l => l.name.startsWith('Agent/')).map(l => l.name).join(','),\n  from: e.From,\n  subject: e.Subject,\n  snippet: e.snippet\n})), null, 2) }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are writing a morning digest for a real estate agent. They received the emails below overnight.  Write a brief, scannable summary in this exact format:  Good morning. Here's what came in overnight.  **Leads (X)** - [One line per lead: sender + brief context]  **Transactions (X)** - [One line per transaction email]  **Past clients (X)** - [One line each]  **Vendor (X)** and **Junk (X)** were auto-filed.  Voice rules: - Skip sections that have zero emails - No em dashes, no emojis - Sound human, not corporate - Use real names from the From field, not \"a lead\" or \"someone\" - Keep each line under 15 words - If no important mail came in, say \"Quiet morning. Nothing urgent overnight.\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        576,
+        0
+      ],
+      "id": "8d9b4a5c-bf49-4a14-9469-45416d2dbf7f",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "TYWXNZTOwt5BhweN",
+          "name": "Anthropic - Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "emails",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        368,
+        0
+      ],
+      "id": "4f3272e8-5426-44e2-a4d8-7348433191aa",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.content[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        928,
+        0
+      ],
+      "id": "73a51997-aae2-412a-baad-e6f1a7fb2ba9",
+      "name": "Send a text message",
+      "webhookId": "6ea5e0be-e6a6-40fb-b8b7-88df8ccb638b",
+      "credentials": {
+        "telegramApi": {
+          "id": "IA2iKB9Q8Vce7PeT",
+          "name": "Telegram Real Estate Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "khkhpl3aZ0e2q5eA",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

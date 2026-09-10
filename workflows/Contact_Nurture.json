@@ -1,0 +1,246 @@
+{
+  "name": "Contact Nurture",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -672,
+        -48
+      ],
+      "id": "3a82a3b8-93b8-4359-8fc5-bc89f084b442",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contacts",
+        "returnAll": true,
+        "filters": {
+          "conditions": []
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        -48
+      ],
+      "id": "a2a4c615-6c67-487c-8ba9-21983ff46461",
+      "name": "Supabase find clients",
+      "credentials": {
+        "supabaseApi": {
+          "id": "7T3w55mPBUUkeek1",
+          "name": "Supabase Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Write a message for this past client.\n\nReason for outreach: {{ $json.reason }}\nContext: {{ $json.context }}\nName: {{ $json.name }}\nNotes about them: {{ $json.notes }}\nTheir purchase date (if any): {{ $json.home_purchase_date }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are drafting a short personal message from a real estate agent to a past client. The \"reason\" field tells you what kind of message to write:  - \"birthday\" \u2192 A warm birthday text. Reference one specific thing from their notes (their dog, kids, neighborhood, etc). Keep it 2-3 sentences max. Don't pitch anything. - \"anniversary\" \u2192 A short home anniversary check-in. Reference how long it's been (in context). Ask casually how the home is treating them. Maybe mention if you helped with anything specific they might remember. 3-4 sentences max. - \"reconnect\" \u2192 A genuine \"thinking of you, how are things\" message after a stretch of no contact. Reference something specific from their notes. NO sales pitch. 3-4 sentences max.  Output ONLY the message body. No subject line. No \"Here's a draft,\" no preamble.  Voice rules - strict: - Sound like a friend texting, not a corporate template. - NO em dashes ever. - NO emojis unless context demands it (rare). - Contractions always: I'm, you're, can't, we've. - Avoid AI tells: \"I hope this finds you well,\" \"Just wanted to reach out,\" \"It's been a while since we connected\" (clich\u00e9), \"Wishing you a wonderful,\" \"filled with.\" - Reference the person's specific situation from their notes. Generic is worse than not sending. - Sign off naturally based on context: \"Best, [Agent Name]\" or \"Talk soon, [Agent Name]\" or \"Cheers, [Agent Name]\" \u2014 agent will replace [Agent Name]."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        -48
+      ],
+      "id": "299056a1-8f22-447d-94e5-15b3991d0252",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "TYWXNZTOwt5BhweN",
+          "name": "Anthropic - Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\nconst todayMonth = today.getUTCMonth();\nconst todayDay = today.getUTCDate();\nconst NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;\n\nconst results = [];\n\nfor (const item of $input.all()) {\n  const c = item.json;\n  \n  // Skip leads \u2014 they're handled by the Gmail workflows, not nurture\n  if (c.relationship_type === 'lead') continue;\n  \n  let reason = null;\n  let context = '';\n  \n  // Check birthday\n  if (c.birthday) {\n    const bday = new Date(c.birthday);\n    if (bday.getUTCMonth() === todayMonth && bday.getUTCDate() === todayDay) {\n      reason = 'birthday';\n    }\n  }\n  \n  // Check home anniversary (only if no birthday match)\n  if (!reason && c.home_purchase_date) {\n    const purchase = new Date(c.home_purchase_date);\n    if (purchase.getUTCMonth() === todayMonth && purchase.getUTCDate() === todayDay) {\n      const years = today.getUTCFullYear() - purchase.getUTCFullYear();\n      if (years > 0) {\n        reason = 'anniversary';\n        context = `${years} year${years > 1 ? 's' : ''} since they bought their home`;\n      }\n    }\n  }\n  \n  // Check stale contact (only if no birthday/anniversary)\n  if (!reason && c.last_contacted_at) {\n    const lastContact = new Date(c.last_contacted_at);\n    const daysSince = (today - lastContact) / (24 * 60 * 60 * 1000);\n    if (daysSince >= 90) {\n      reason = 'reconnect';\n      context = `${Math.floor(daysSince)} days since last contact`;\n    }\n  }\n  \n  if (reason) {\n    results.push({\n      json: {\n        ...c,\n        reason: reason,\n        context: context\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        -48
+      ],
+      "id": "2df4eb86-1593-471a-ae99-dbff491aa22b",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $('Code').item.json.reason === 'birthday' ? 'Happy birthday!' : $('Code').item.json.reason === 'anniversary' ? 'Home anniversary check-in' : 'Thinking of you' }}",
+        "message": "={{ $json.content[0].text }}",
+        "options": {
+          "sendTo": "={{ $('Code').item.json.email }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        304,
+        -48
+      ],
+      "id": "c27d76c1-7c51-471c-9e06-021c38420df1",
+      "name": "Save Nurture Draft",
+      "webhookId": "c8b70d7e-60d5-42e9-90f2-4561609728de",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "drafts",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        496,
+        -48
+      ],
+      "id": "1e0f7c75-3ed7-4773-933b-d49492b5a662",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=I drafted {{ $json.drafts.length }} nurture messages for you to review:\n\n{{ $json.drafts.map((d, i) => `${i+1}. ${$('Code').all()[i].json.name} (${$('Code').all()[i].json.reason})`).join('\\n\\n') }}\n\nCheck your Gmail Drafts before sending.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        704,
+        -48
+      ],
+      "id": "90919afa-5d2a-4471-84dc-e594f26a20df",
+      "name": "Notify Nurture Drafts",
+      "webhookId": "1fff53ae-c7d6-4251-b703-4f8560756e3f",
+      "credentials": {
+        "telegramApi": {
+          "id": "IA2iKB9Q8Vce7PeT",
+          "name": "Telegram Real Estate Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase find clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase find clients": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Save Nurture Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Nurture Draft": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Notify Nurture Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "khkhpl3aZ0e2q5eA",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

@@ -1,0 +1,651 @@
+{
+  "name": "Inbox Classifier",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "*/15 * * * *"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -688,
+        -160
+      ],
+      "id": "ef1f8190-a1c6-4a36-8140-de60640dd3b2",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=From: {{ $json.From }}\nSubject: {{ $json.Subject }}\nBody: {{ $json.snippet }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are an email classifier for a real estate agent. Read the email below and respond with EXACTLY ONE WORD from this list:  lead \u2014 a potential client inquiring about buying or selling, or someone responding to a listing or ad transaction \u2014 an active deal: inspection, escrow, closing, lender, title company, other agent in a current deal vendor \u2014 service providers: photographer, stager, contractor, lender promo, MLS notification pastclient \u2014 a past client checking in, asking a question, or sending personal updates junk \u2014 newsletter, marketing, broker promo, MLS broadcast, irrelevant  Respond with ONLY the category word in lowercase. No punctuation, no explanation, no additional words. One word only."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -160
+      ],
+      "id": "60e1684c-fba4-4009-9a69-a8bb15bebbff",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "TYWXNZTOwt5BhweN",
+          "name": "Anthropic - Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.content[0].text }}",
+                    "rightValue": "lead",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "1c9e4c67-f18e-4659-b1e9-c99e416cddf6"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "lead"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "15010f65-97f1-4a66-afbd-c317ebe1adbe",
+                    "leftValue": "={{ $json.content[0].text }}",
+                    "rightValue": "transaction",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "transaction"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f8f8c082-1bab-408f-b47e-5dd520191051",
+                    "leftValue": "={{ $json.content[0].text }}",
+                    "rightValue": "vendor",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "vendor"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3154c2da-c0f7-474d-96fa-55111efd19bd",
+                    "leftValue": "={{ $json.content[0].text }}",
+                    "rightValue": "pastclient",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pastclient"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "dff7eb80-3768-4ef7-8c29-abe31c2b87f4",
+                    "leftValue": "={{ $json.content[0].text }}",
+                    "rightValue": "junk",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "junk"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": 4
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -304,
+        -208
+      ],
+      "id": "1f48cad2-4c83-4cd1-82af-a99048f595b0",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "labelIds": [
+          "Label_2994420564235072349"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -80,
+        -672
+      ],
+      "id": "ecd0fd6f-4549-4dbc-a2fc-522f26eb29f4",
+      "name": "Label as Lead",
+      "webhookId": "ecaa7910-e10a-4152-8bd1-0fa06a380ce4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "labelIds": [
+          "Label_8138123092105239492"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        32,
+        -368
+      ],
+      "id": "244025a4-2fdd-4f3a-87ac-7430673f4af6",
+      "name": "Label as Transaction",
+      "webhookId": "2cfde5f9-b6fb-4657-952f-eedcc23c27dd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "labelIds": [
+          "Label_981571185869256792"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        -160
+      ],
+      "id": "98773498-2d1a-409b-844d-9ebf5697d483",
+      "name": "Label as Vendor",
+      "webhookId": "63151a68-68f3-48dc-b940-ff3f165374b3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "labelIds": [
+          "Label_6076338382261759704"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        48,
+        32
+      ],
+      "id": "92146b08-17ab-410f-85f8-237c557e5ed8",
+      "name": "Label as PastClient",
+      "webhookId": "79ee5ed9-fd15-416b-a87f-46e1e4c28feb",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "labelIds": [
+          "Label_7576413805992683891"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        80,
+        224
+      ],
+      "id": "f479f944-c3be-4d95-8d9c-e43e5c86ab79",
+      "name": "Label as Junk",
+      "webhookId": "7420fdf3-8af3-43ea-a6b0-7687609f3823",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=A new lead just emailed in. Draft a reply.\n\nFrom: {{ $('Gmail Trigger').item.json.From }}\nSubject: {{ $('Gmail Trigger').item.json.Subject }}\nBody: {{ $('Gmail Trigger').item.json.snippet }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are drafting a reply to a new buyer or seller lead, on behalf of a real estate agent. The lead just emailed in interested in a property or asking a general inquiry.  Output ONLY the email body. No subject line, no \"Here's a draft,\" no preamble.  Voice rules - strict: - Write like a real agent texting a friend who happens to be a client. Warm, casual, professional. - NO em dashes ever. Use periods, commas, or two sentences. - NO emojis unless context demands it. - Avoid AI tells: \"I hope this finds you well,\" \"Thank you for reaching out,\" \"I would be delighted,\" \"Please don't hesitate.\" - Use contractions: I'm, you're, we'll, can't. - Keep it under 6 sentences. - Sign off with \"Best, [Agent Name]\" - the agent will replace [Agent Name] before sending.  What the reply should do: - Acknowledge what they asked about specifically (use the property name or topic from their email). - Propose a concrete next step: a showing, a call, sending more info. - Suggest 2 specific time options (something like \"tomorrow afternoon or Saturday morning\") so they can pick. - End warmly without being saccharine.  If the email is ambiguous or you can't tell what they want, write a short reply asking 1-2 clarifying questions instead."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        128,
+        -672
+      ],
+      "id": "fa4dce50-0e8c-468b-bf3c-6f07f64b6374",
+      "name": "Draft Lead Reply",
+      "credentials": {
+        "anthropicApi": {
+          "id": "TYWXNZTOwt5BhweN",
+          "name": "Anthropic - Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: {{ $('Gmail Trigger').item.json.Subject }}",
+        "message": "={{ $json.content[0].text }}",
+        "options": {
+          "threadId": "={{ $('Gmail Trigger').item.json.threadId }}",
+          "sendTo": "={{ $('Gmail Trigger').item.json.From }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        -672
+      ],
+      "id": "feeb1b15-e478-4085-96a6-169b325be0b0",
+      "name": "Save Lead Draft",
+      "webhookId": "7dd1384c-374d-46f7-b5bd-571616ac712d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=New lead: {{ $('Gmail Trigger').item.json.From }}\n     \n     Subject: {{ $('Gmail Trigger').item.json.Subject }}\n     \n     I drafted a reply. Review it in your Gmail Drafts before sending.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        688,
+        -672
+      ],
+      "id": "366977aa-e72e-46c5-888b-8dbc857d9eb4",
+      "name": "Notify Lead Draft",
+      "webhookId": "447c65e1-0f62-4b6a-8dee-e7e9fdc4d0f7",
+      "credentials": {
+        "telegramApi": {
+          "id": "IA2iKB9Q8Vce7PeT",
+          "name": "Telegram Real Estate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=A new lead just emailed in. Draft a reply.\n\nFrom: {{ $('Gmail Trigger').item.json.From }}\nSubject: {{ $('Gmail Trigger').item.json.Subject }}\nBody: {{ $('Gmail Trigger').item.json.snippet }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are drafting a reply on behalf of a real estate agent in the middle of an active transaction. The email below is from a buyer, seller, lender, title company, inspector, or another agent involved in a deal.  Output ONLY the email body. No subject line, no preamble.  Voice rules: - Sound like a professional realtor who knows what they're doing. Calm, direct, no fluff. - NO em dashes. NO emojis. Use contractions. - Avoid AI phrases: \"I hope this finds you well,\" \"I would be happy to,\" \"Please let me know if there's anything else.\" - Keep it under 5 sentences. - Sign off with \"Thanks, [Agent Name]\" - the agent replaces [Agent Name] before sending.  What the reply should do: - Acknowledge the specific update or request (inspection, closing, document, etc.). - Confirm action items or next steps clearly. - If a date or time is mentioned, restate it to confirm understanding. - If something requires the agent's attention or decision, flag it briefly.  If the email is unclear, ask one specific clarifying question rather than guessing."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -368
+      ],
+      "id": "07a0a0cc-ffc0-48b7-8b93-2b5d9d76e632",
+      "name": "Draft Transaction Reply",
+      "credentials": {
+        "anthropicApi": {
+          "id": "TYWXNZTOwt5BhweN",
+          "name": "Anthropic - Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: {{ $('Gmail Trigger').item.json.Subject }}",
+        "message": "={{ $json.content[0].text }}",
+        "options": {
+          "threadId": "={{ $('Gmail Trigger').item.json.threadId }}",
+          "sendTo": "={{ $('Gmail Trigger').item.json.From }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        544,
+        -368
+      ],
+      "id": "80ff0ee3-4175-468f-b5be-082dbb34a1dc",
+      "name": "Save Transaction Draft",
+      "webhookId": "7dd1384c-374d-46f7-b5bd-571616ac712d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "so2YlSw5MjoVYRQ5",
+          "name": "Gmail - Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=Transaction update: {{ $('Gmail Trigger').item.json.From }}\n\nSubject: {{ $('Gmail Trigger').item.json.Subject }}\n\nI drafted a reply. Review it in Drafts before sending.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        752,
+        -368
+      ],
+      "id": "4543ad8c-e5ca-4141-b9fe-2f0ea9800afb",
+      "name": "Notify Transaction Draft",
+      "webhookId": "447c65e1-0f62-4b6a-8dee-e7e9fdc4d0f7",
+      "credentials": {
+        "telegramApi": {
+          "id": "IA2iKB9Q8Vce7PeT",
+          "name": "Telegram Real Estate Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Label as Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Label as Transaction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Label as Vendor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Label as PastClient",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Label as Junk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label as Lead": {
+      "main": [
+        [
+          {
+            "node": "Draft Lead Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Lead Reply": {
+      "main": [
+        [
+          {
+            "node": "Save Lead Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Lead Draft": {
+      "main": [
+        [
+          {
+            "node": "Notify Lead Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label as Transaction": {
+      "main": [
+        [
+          {
+            "node": "Draft Transaction Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Transaction Reply": {
+      "main": [
+        [
+          {
+            "node": "Save Transaction Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Transaction Draft": {
+      "main": [
+        [
+          {
+            "node": "Notify Transaction Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "khkhpl3aZ0e2q5eA",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Gmail Trigger": {
+      "Gmail Trigger": {
+        "lastTimeChecked": 1779646003,
+        "possibleDuplicates": [
+          "19e5b2b00e47aec9"
+        ]
+      }
+    }
+  },
+  "pinData": {},
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
