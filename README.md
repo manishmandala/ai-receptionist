@@ -51,76 +51,37 @@ ID, not exported).
 
 ## Architecture
 
+Actual n8n canvases, screenshotted from the imported workflows (not diagrams
+drawn by hand) so the node types, icons, and connections match exactly what's
+in the JSON exports below.
+
 ### Inbox Classifier
 
-```mermaid
-flowchart LR
-    A[Gmail Trigger] --> B[Claude: classify]
-    B --> C{Switch}
-    C -->|lead| D[Label: Lead]
-    C -->|transaction| E[Label: Transaction]
-    C -->|vendor| F[Label: Vendor]
-    C -->|pastclient| G[Label: PastClient]
-    C -->|junk| H[Label: Junk]
-    D --> I[Claude: draft lead reply]
-    I --> J[Save to Drafts]
-    J --> K[Notify agent on Telegram]
-    E --> L[Claude: draft transaction reply]
-    L --> M[Save to Drafts]
-    M --> N[Notify agent on Telegram]
-```
+![Inbox Classifier workflow](assets/workflows/Inbox_Classifier.png)
 
 ### Contact Nurture
 
-```mermaid
-flowchart LR
-    A[Schedule Trigger] --> B[Supabase: find clients]
-    B --> C[Code: birthday / anniversary / 90-day-quiet check]
-    C --> D[Claude: draft nurture message]
-    D --> E[Save to Drafts]
-    E --> F[Aggregate]
-    F --> G[Notify agent on Telegram]
-```
+![Contact Nurture workflow](assets/workflows/Contact_Nurture.png)
 
 ### Transaction Coordination
 
-```mermaid
-flowchart LR
-    A[Schedule Trigger] --> B[Supabase: get active deals]
-    B --> C[Code: detect milestone - inspection / closing / follow-up]
-    C --> D[Claude: draft transaction email]
-    D --> E[Code: split buyer + other-agent emails]
-    E --> F[Save to Drafts]
-    E --> G[Aggregate]
-    G --> H[Notify agent on Telegram]
-```
+![Transaction Coordination workflow](assets/workflows/Transaction_Coordination.png)
 
 ### Telegram Brain
 
-```mermaid
-flowchart LR
-    A[Telegram Trigger] --> B{Switch on command}
-    B -->|"/listing"| C[Claude: generate MLS description]
-    C --> D[Reply on Telegram]
-    B -->|other command| E[Reply on Telegram]
-    B -->|general message| F[Claude: assistant reply]
-    F --> D
-```
+![Telegram Brain workflow](assets/workflows/Telegram_Brain.png)
 
-### Supporting workflows
+### Daily Inbox Digest
 
-```mermaid
-flowchart LR
-    subgraph Daily Inbox Digest
-        A1[Schedule Trigger] --> A2[Gmail: get last 24h] --> A3[Claude: summarize] --> A4[Telegram digest]
-    end
-    subgraph Health Check
-        B1[Schedule Trigger] --> B2[Supabase: last-updated check] --> B3[Telegram ping if stale]
-    end
-    subgraph Error Trigger
-        C1[Any workflow fails] --> C2[Telegram error alert]
-    end
-```
+![Daily Inbox Digest workflow](assets/workflows/Daily_Inbox_Digest.png)
+
+### Health Check
+
+![Health Check workflow](assets/workflows/Health_Check.png)
+
+### Error Trigger
+
+![Error Trigger workflow](assets/workflows/Error_Trigger.png)
 
 ## Stack
 
